@@ -8,8 +8,8 @@ import urllib.request
 import json
 
 # UBAH DI SINI.
-HURUF = "T"                 # Ganti A, B, C, ... Z atau UNKNOWN
-JUMLAH_FOTO = 50            # Jumlah foto BARU setiap sesi: 40 / 50 / 100
+HURUF = "S"                 # Ganti A, B, C, ... Z atau UNKNOWN
+JUMLAH_FOTO = 100            # Jumlah foto BARU setiap sesi: 40 / 50 / 100
 JUMLAH_TANGAN = 2           # 1 atau 2 sesuai pose huruf yang direkam
 TRAIN_SETELAH_REKAM = True
 CAMERA_INDEX = 0
