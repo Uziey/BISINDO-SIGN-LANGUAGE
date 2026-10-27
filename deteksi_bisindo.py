@@ -13,10 +13,21 @@ def detect(args):
     if not MODEL.exists():
         raise ValueError("Model belum ada. Jalankan data_training.py dan kumpulkan minimal 2 kelas.")
     bundle = joblib.load(MODEL)  # Hanya buka model hasil training sendiri.
+    if not isinstance(bundle, dict):
+        raise ValueError("Format model tidak valid. Latih ulang.")
     if bundle.get("feature_version") != 2:
         raise ValueError("Versi fitur tidak cocok. Latih ulang.")
-    model = bundle["model"]
-    allowed_counts = bundle["allowed_counts"]
+    model = bundle.get("model")
+    if model is None or not hasattr(model, "predict_proba"):
+        raise ValueError("Model tidak valid. Latih ulang.")
+    allowed_raw = bundle.get("allowed_counts", {})
+    allowed_counts = {}
+    if isinstance(allowed_raw, dict):
+        for label, counts in allowed_raw.items():
+            if isinstance(counts, (list, tuple, set)):
+                allowed_counts[str(label)] = {int(v) for v in counts}
+            elif isinstance(counts, int):
+                allowed_counts[str(label)] = {int(counts)}
     history = deque(maxlen=5)
     cap = camera(args.camera)
     try:
@@ -35,7 +46,8 @@ def detect(args):
                     idx = int(np.argmax(probs))
                     score = float(probs[idx])
                     label = str(model.classes_[idx])
-                    if score < args.threshold or label == "UNKNOWN" or len(hands) not in allowed_counts[label]:
+                    allowed = allowed_counts.get(label, set())
+                    if score < args.threshold or label == "UNKNOWN" or len(hands) not in allowed:
                         history.clear()
                         text = "Belum dikenali"
                     else:

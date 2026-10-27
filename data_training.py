@@ -8,9 +8,9 @@ import urllib.request
 import json
 
 # UBAH DI SINI.
-HURUF = "D"                 # Ganti A, B, C, ... Z atau UNKNOWN
+HURUF = "O"                 # Ganti A, B, C, ... Z atau UNKNOWN
 JUMLAH_FOTO = 100            # Jumlah foto BARU setiap sesi: 40 / 50 / 100
-JUMLAH_TANGAN = 2           # 1 atau 2 sesuai pose huruf yang direkam
+JUMLAH_TANGAN = 1           # 1 atau 2 sesuai pose huruf yang direkam
 TRAIN_SETELAH_REKAM = True
 CAMERA_INDEX = 0
 INTERVAL_FOTO = 0.5          # Jeda detik antar foto
@@ -187,9 +187,12 @@ def train():
                 continue
             if path.parent not in session_meta:
                 meta_path = path.parent / "session.json"
-                session_meta[path.parent] = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+                try:
+                    session_meta[path.parent] = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+                except (json.JSONDecodeError, OSError, TypeError, ValueError):
+                    session_meta[path.parent] = {}
             meta = session_meta[path.parent]
-            if meta.get("feature_version") != 2 or meta.get("hands") not in (1,2):
+            if not isinstance(meta, dict) or meta.get("feature_version") != 2 or meta.get("hands") not in (1,2):
                 skipped += 1
                 continue
             frame = cv2.imread(str(path))
