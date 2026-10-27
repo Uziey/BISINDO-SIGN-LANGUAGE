@@ -5,6 +5,7 @@
     "E": 97,
     "L": 100,
     "M": 100,
+    "N": 95,
     "Q": 100,
     "R": 100,
     "S": 98,
@@ -13,6 +14,6 @@
     "V": 100,
     "W": 94
   },
-  "skipped": 15,
+  "skipped": 20,
   "evaluation": "Belum tersedia: perlu >=2 sesi valid per kelas."
 }
