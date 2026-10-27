@@ -3,8 +3,9 @@
     "A": 100,
     "B": 200,
     "S": 98,
-    "T": 100
+    "T": 100,
+    "U": 122
   },
-  "skipped": 2,
+  "skipped": 6,
   "evaluation": "Belum tersedia: perlu >=2 sesi valid per kelas."
 }
