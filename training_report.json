@@ -2,7 +2,7 @@
   "valid_counts": {
     "A": 100,
     "B": 200,
-    "T": 50
+    "T": 100
   },
   "skipped": 0,
   "evaluation": "Belum tersedia: perlu >=2 sesi valid per kelas."
