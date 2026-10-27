@@ -7,6 +7,7 @@
     "F": 99,
     "G": 100,
     "H": 100,
+    "I": 99,
     "L": 100,
     "M": 100,
     "N": 95,
@@ -23,6 +24,6 @@
     "Y": 89,
     "Z": 89
   },
-  "skipped": 44,
+  "skipped": 45,
   "evaluation": "Belum tersedia: perlu >=2 sesi valid per kelas."
 }
