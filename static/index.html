@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Penerjemah BISINDO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#FAF7F2;--ink:#344E41;--teal:#C2410C;--sun:#FFD23F;--mute:#588157;--line:#588157;--card:#E9E2D3;--warn:#B45309;--f:"Bricolage Grotesque",system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--f)}
+main{max-width:1080px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:clamp(1.7rem,4vw,2.5rem);font-weight:800;margin:0;letter-spacing:-.02em}
+header{text-align:center}
+header p{margin:4px 0 20px;color:var(--mute)}
+.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:20px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.cam{position:relative;border-radius:10px;overflow:hidden;background:#0d1417;aspect-ratio:4/3}
+.cam video,.cam canvas{position:absolute;inset:0;width:100%;height:100%}
+video{transform:scaleX(-1);object-fit:fill}
+.empty{position:absolute;inset:0;display:grid;place-items:center;color:#a9b8bf;text-align:center;padding:24px}
+.empty[hidden]{display:none}
+.bar{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:12px;flex-wrap:wrap}
+.chip{display:flex;gap:8px;align-items:center;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--mute)}
+.ok .dot{background:var(--teal)}.warn .dot{background:var(--warn)}
+button{font:600 15px var(--f);border:1px solid var(--ink);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 14px;cursor:pointer}
+button.main{background:var(--ink);color:#fff}
+button:focus-visible,input:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+.sw{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--mute);margin-top:12px}
+.sw input[type=range]{flex:0 1 160px}
+.letter{font-size:clamp(6rem,15vw,9.5rem);font-weight:800;line-height:1;text-align:center;margin:0 0 8px;letter-spacing:-.04em}
+.letter.dim{opacity:.28}
+.meter{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--teal);transition:width .15s}
+#hold i{background:var(--sun)}
+.top div.r{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:14px}
+.top b{width:1.2em}.top .meter{flex:1;height:6px}.top span{width:3.2em;text-align:right;color:var(--mute)}
+.text{min-height:3.4rem;font-size:1.7rem;font-weight:600;word-break:break-all;padding:10px 12px;border:1px dashed var(--line);border-radius:8px;margin:14px 0 10px}
+.text.ph{color:var(--mute);font-size:1rem;font-weight:400}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.abc{display:grid;grid-template-columns:repeat(13,1fr);gap:6px;margin-top:20px}
+@media(max-width:560px){.abc{grid-template-columns:repeat(7,1fr)}}
+.abc div{aspect-ratio:1;display:grid;place-items:center;border-radius:8px;font-weight:800;border:1px solid var(--line);background:var(--card)}
+.abc .miss{opacity:.35;border-style:dashed}
+.abc .now{background:var(--sun);border-color:var(--ink)}
+small{color:var(--mute)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Penerjemah BISINDO</h1><p>Tunjukkan huruf dengan tangan ke kamera. Huruf yang sudah stabil bisa ditambahkan ke teks.</p></header>
+<div class="grid">
+  <section class="panel">
+    <div class="cam" id="cam"><video id="v" playsinline muted></video><canvas id="ov"></canvas>
+      <div class="empty" id="empty">Klik Mulai kamera, lalu izinkan akses kamera di browser.</div></div>
+    <div class="bar"><div class="chip" id="st"><span class="dot"></span><span id="stx">Kamera belum aktif</span></div>
+      <button class="main" id="go">Mulai kamera</button></div>
+    <label class="sw">Ambang keyakinan <input id="thr" type="range" min="50" max="95" value="70"><b id="thv">0.70</b></label>
+  </section>
+  <section class="panel">
+    <div class="letter dim" id="big">–</div>
+    <div class="meter" id="conf"><i></i></div>
+    <div class="top" id="top"></div>
+    <div class="text ph" id="txt"></div>
+    <div class="meter" id="hold"><i></i></div>
+    <label class="sw"><input type="checkbox" id="auto" checked> Tambahkan otomatis setelah huruf ditahan 0,5 detik</label>
+    <div class="row"><button id="sp">Spasi</button><button id="del">Hapus</button><button id="clr">Bersihkan</button><button id="cp">Salin teks</button></div>
+  </section>
+</div>
+<div class="abc" id="abc"></div>
+<small id="cnt"></small>
+</main>
+<script>
+const $=s=>document.querySelector(s),v=$('#v'),ov=$('#ov'),ctx=ov.getContext('2d'),abc=$('#abc');
+const cv=document.createElement('canvas'),cx=cv.getContext('2d');
+const EDGES=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[0,17],[17,18],[18,19],[19,20]];
+let run=false,busy=false,hist=[],text='',holdL=null,holdT=0,added=false,stream=null,timer=null;
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(c=>{const d=document.createElement('div');d.textContent=c;d.id='k'+c;abc.append(d)});
+const status=(k,m)=>{$('#st').className='chip '+k;$('#stx').textContent=m};
+const conf=s=>$('#conf i').style.width=s*100+'%',hold=p=>$('#hold i').style.width=p*100+'%';
+fetch('/api/info').then(r=>r.json()).then(i=>{
+  [...abc.children].forEach(d=>{if(!i.letters.includes(d.textContent)){d.className='miss';d.title='Belum ada di dataset'}});
+  $('#cnt').textContent=i.letters.length+' dari 26 huruf tersedia. Huruf bergaris putus belum ada di model.';
+}).catch(()=>status('warn','Server belum berjalan. Jalankan python app.py'));
+function render(){const t=$('#txt');t.textContent=text||'Teks hasil terjemahan muncul di sini';t.className='text'+(text?'':' ph')}
+render();
+const reset=()=>{hist=[];holdL=null;added=false;hold(0)};
+$('#go').onclick=async()=>{
+  if(run)return stop();
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'},audio:false})}
+  catch{return status('warn','Kamera tidak bisa dibuka. Izinkan akses kamera lalu coba lagi.')}
+  v.srcObject=stream;await v.play();
+  $('#cam').style.aspectRatio=v.videoWidth+'/'+v.videoHeight;ov.width=v.videoWidth;ov.height=v.videoHeight;
+  $('#empty').hidden=true;run=true;$('#go').textContent='Hentikan kamera';status('idle','Arahkan tangan ke kamera');
+  timer=setInterval(tick,110);
+};
+function stop(){run=false;clearInterval(timer);stream&&stream.getTracks().forEach(t=>t.stop());v.srcObject=null;
+  ctx.clearRect(0,0,ov.width,ov.height);$('#empty').hidden=false;$('#go').textContent='Mulai kamera';status('idle','Kamera belum aktif');reset();conf(0);renderTopProbabilities([]);$('#big').textContent='–';$('#big').className='letter dim'}
+function tick(){
+  if(!run||busy)return;busy=true;
+  cv.width=640;cv.height=Math.round(640*v.videoHeight/v.videoWidth);
+  cx.setTransform(-1,0,0,1,cv.width,0);cx.drawImage(v,0,0,cv.width,cv.height); // cermin, sama seperti saat training
+  cv.toBlob(b=>fetch('/api/predict',{method:'POST',body:b}).then(r=>r.json()).then(show)
+    .catch(()=>status('warn','Server tidak merespons')).finally(()=>busy=false),'image/jpeg',.75);
+}
+function draw(h){
+  const W=ov.width,H=ov.height;ctx.clearRect(0,0,W,H);ctx.lineWidth=3;ctx.strokeStyle='#FFD23F';
+  h.forEach(p=>{ctx.beginPath();EDGES.forEach(([a,b])=>{ctx.moveTo(p[a][0]*W,p[a][1]*H);ctx.lineTo(p[b][0]*W,p[b][1]*H)});ctx.stroke();
+    ctx.fillStyle='#fff';p.forEach(q=>{ctx.beginPath();ctx.arc(q[0]*W,q[1]*H,4,0,7);ctx.fill()})});
+}
+function renderTopProbabilities(l){$('#top').innerHTML=l.map(x=>`<div class="r"><b>${x.label}</b><div class="meter"><i style="width:${x.score*100}%"></i></div><span>${Math.round(x.score*100)}%</span></div>`).join('')}
+function show(r){
+  draw(r.hands);const thr=$('#thr').value/100;let L=null,stable=false;
+  if(!r.hands.length){reset();conf(0);renderTopProbabilities([]);status('idle','Arahkan tangan ke kamera')}
+  else if(r.label===null){reset();conf(0);renderTopProbabilities([]);status('warn','Tangan terdeteksi, tapi posisinya belum jelas')}
+  else{renderTopProbabilities(r.top);conf(r.score);
+    if(r.score<thr||!r.valid){reset();status('warn','Belum dikenali')}
+    else{hist.push(r.label);if(hist.length>5)hist.shift();L=r.label;stable=hist.length==5&&hist.every(x=>x==L);
+      status(stable?'ok':'idle',stable?'Terdeteksi':'Menstabilkan…');if(!stable)hold(0)}}
+  const big=$('#big');big.textContent=L||'–';big.className='letter'+(stable?'':' dim');
+  abc.querySelectorAll('.now').forEach(e=>e.classList.remove('now'));
+  if(stable){$('#k'+L).classList.add('now');autoAdd(L)}
+}
+function autoAdd(L){
+  const now=performance.now();if(holdL!==L){holdL=L;holdT=now;added=false}
+  const p=Math.min((now-holdT)/500,1),on=$('#auto').checked;hold(on?(added?1:p):0);
+  if(on&&p>=1&&!added){text+=L;render();added=true}
+}
+$('#thr').oninput=e=>$('#thv').textContent=(e.target.value/100).toFixed(2);
+$('#sp').onclick=()=>{text+=' ';render()};
+$('#del').onclick=()=>{text=text.slice(0,-1);render()};
+$('#clr').onclick=()=>{text='';render()};
+$('#cp').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(text);
+</script>
+</body>
+</html>
