@@ -27,6 +27,7 @@ video{transform:scaleX(-1);object-fit:fill}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--mute)}
 .ok .dot{background:var(--teal)}.warn .dot{background:var(--warn)}
 button{font:600 15px var(--f);border:1px solid var(--ink);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 14px;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
 button.main{background:var(--ink);color:#fff}
 button:focus-visible,input:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
 .sw{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--mute);margin-top:12px}
@@ -68,6 +69,9 @@ small{color:var(--mute)}
     <div class="text ph" id="txt"></div>
     <div class="meter" id="hold"><i></i></div>
     <label class="sw"><input type="checkbox" id="auto" checked> Tambahkan otomatis setelah huruf ditahan 0,5 detik</label>
+    <div class="row"><button class="main" id="done" disabled>Bacakan</button><button id="mute" hidden>Hentikan suara</button><button id="compose" hidden>Lanjut menulis</button></div>
+    <label class="sw">Suara <select id="voice" aria-label="Pilihan suara"><option value="">Otomatis (Bahasa Indonesia)</option></select></label>
+    <small id="speech-status" role="status" aria-live="polite">Selesaikan teks, lalu klik Done untuk membacakannya.</small>
     <div class="row"><button id="sp">Spasi</button><button id="del">Hapus</button><button id="clr">Bersihkan</button><button id="cp">Salin teks</button></div>
   </section>
 </div>
@@ -86,7 +90,10 @@ fetch('/api/info').then(r=>r.json()).then(i=>{
   [...abc.children].forEach(d=>{if(!i.letters.includes(d.textContent)){d.className='miss';d.title='Belum ada di dataset'}});
   $('#cnt').textContent=i.letters.length+' dari 26 huruf tersedia. Huruf bergaris putus belum ada di model.';
 }).catch(()=>status('warn','Server belum berjalan. Jalankan python app.py'));
-function render(){const t=$('#txt');t.textContent=text||'Teks hasil terjemahan muncul di sini';t.className='text'+(text?'':' ph')}
+let finished=false,utterance=null;
+const synth=window.speechSynthesis;
+const speechSupported=!!synth&&'SpeechSynthesisUtterance' in window;
+function render(){const t=$('#txt');t.textContent=text||'Teks hasil terjemahan muncul di sini';t.className='text'+(text?'':' ph');$('#done').disabled=!speechSupported||!text.trim()}
 render();
 const reset=()=>{hist=[];holdL=null;added=false;hold(0)};
 $('#go').onclick=async()=>{
@@ -126,14 +133,43 @@ function show(r){
   if(stable){$('#k'+L).classList.add('now');autoAdd(L)}
 }
 function autoAdd(L){
+  if(finished)return;
   const now=performance.now();if(holdL!==L){holdL=L;holdT=now;added=false}
   const p=Math.min((now-holdT)/500,1),on=$('#auto').checked;hold(on?(added?1:p):0);
   if(on&&p>=1&&!added){text+=L;render();added=true}
 }
 $('#thr').oninput=e=>$('#thv').textContent=(e.target.value/100).toFixed(2);
-$('#sp').onclick=()=>{text+=' ';render()};
-$('#del').onclick=()=>{text=text.slice(0,-1);render()};
-$('#clr').onclick=()=>{text='';render()};
+function speechStatus(message){$('#speech-status').textContent=message}
+function stopSpeech(){utterance=null;if(speechSupported)synth.cancel();$('#mute').hidden=true}
+function resumeWriting(){stopSpeech();finished=false;$('#compose').hidden=true;reset();speechStatus('Selesaikan teks, lalu klik Done untuk membacakannya.')}
+function loadVoices(){
+  const select=$('#voice'),selected=select.value;
+  select.replaceChildren(new Option('Otomatis (Bahasa Indonesia)',''));
+  synth.getVoices().filter(voice=>/^id(?:-|$)/i.test(voice.lang)).forEach(voice=>select.add(new Option(voice.name+' ('+voice.lang+')',voice.voiceURI)));
+  if([...select.options].some(option=>option.value===selected))select.value=selected;
+}
+if(speechSupported){loadVoices();synth.addEventListener('voiceschanged',loadVoices)}
+else{speechStatus('Browser ini belum mendukung text-to-speech. Coba Chrome atau Edge.');$('#voice').disabled=true}
+$('#done').onclick=()=>{
+  const message=text.trim();if(!message||!speechSupported)return;
+  stopSpeech();finished=true;reset();$('#compose').hidden=false;
+  const speech=new SpeechSynthesisUtterance(message);
+  speech.lang='id-ID';speech.rate=.9;
+  const voices=synth.getVoices();
+  const voice=voices.find(voice=>voice.voiceURI===$('#voice').value)||voices.find(voice=>/^id(?:-|$)/i.test(voice.lang));
+  if(voice)speech.voice=voice;
+  utterance=speech;$('#mute').hidden=false;speechStatus('Menyiapkan suara?');
+  speech.onstart=()=>{if(utterance===speech)speechStatus('Sedang membacakan teks?')};
+  speech.onend=()=>{if(utterance!==speech)return;utterance=null;$('#mute').hidden=true;speechStatus('Selesai dibacakan. Klik Done untuk mengulang atau Lanjut menulis.')};
+  speech.onerror=()=>{if(utterance!==speech)return;utterance=null;$('#mute').hidden=true;speechStatus('Suara gagal diputar. Periksa volume atau pilihan suara, lalu klik Done lagi.')};
+  try{synth.speak(speech)}catch{stopSpeech();speechStatus('Suara gagal diputar. Coba klik Done lagi.')}
+};
+$('#mute').onclick=()=>{stopSpeech();speechStatus('Pembacaan dihentikan. Klik Done untuk mengulang.')};
+$('#compose').onclick=resumeWriting;
+window.addEventListener('pagehide',stopSpeech);
+$('#sp').onclick=()=>{resumeWriting();text+=' ';render()};
+$('#del').onclick=()=>{resumeWriting();text=text.slice(0,-1);render()};
+$('#clr').onclick=()=>{resumeWriting();text='';render()};
 $('#cp').onclick=()=>navigator.clipboard&&navigator.clipboard.writeText(text);
 </script>
 </body>
